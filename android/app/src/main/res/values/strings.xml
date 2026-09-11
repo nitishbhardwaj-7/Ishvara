@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Ishvara</string>
+    <string name="title_activity_main">Ishvara</string>
+    <string name="package_name">com.ishvara.sadhana</string>
+    <string name="custom_url_scheme">com.ishvara.sadhana</string>
+</resources>

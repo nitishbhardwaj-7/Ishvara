@@ -1,0 +1,87 @@
+@import "tailwindcss";
+
+/* Lazzer Typeface (Displaay Type Foundry - https://displaay.net/typeface/lazzer/) */
+@font-face {
+  font-family: 'Lazzer';
+  src: url('/fonts/lazzer-variable.woff2') format('woff2-variations'),
+       url('/fonts/lazzer-variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Explicit Lazzer Medium (Weight: 500) definition */
+@font-face {
+  font-family: 'Lazzer Medium';
+  src: url('/fonts/lazzer-variable.woff2') format('woff2-variations'),
+       url('/fonts/lazzer-variable.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@theme {
+  --font-sans: 'Lazzer', 'Lazzer Medium', system-ui, -apple-system, sans-serif;
+  --font-serif: 'Lazzer', 'Lazzer Medium', Georgia, serif;
+  --font-display: 'Lazzer', 'Lazzer Medium', sans-serif;
+}
+
+@layer base {
+  :root {
+    --bg-primary: #090909;
+    --bg-secondary: #111111;
+    --surface: #171717;
+    --accent: #C99A4A;
+    --accent-light: #E2B968;
+    --text-primary: #F5F1E8;
+    --text-secondary: #9B9B9B;
+    --text-muted: #6F6F6F;
+    --border: rgba(255, 255, 255, 0.08);
+  }
+
+  html,
+  body,
+  button,
+  input,
+  textarea,
+  select {
+    font-family: 'Lazzer', 'Lazzer Medium', system-ui, -apple-system, sans-serif;
+    font-weight: 500;
+  }
+
+  body {
+    font-family: 'Lazzer', 'Lazzer Medium', system-ui, -apple-system, sans-serif;
+    font-weight: 500;
+    background-color: var(--bg-primary);
+    color: var(--text-primary);
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+.font-serif,
+.font-display,
+.font-sans {
+  font-family: 'Lazzer', 'Lazzer Medium', system-ui, -apple-system, sans-serif !important;
+}
+
+/* Hide scrollbars for reels, horizontal carousels, and stories */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Subtle gold glass effect */
+.gold-glass {
+  background: rgba(23, 23, 23, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.gold-glow {
+  box-shadow: 0 0 20px -5px rgba(201, 154, 74, 0.25);
+}

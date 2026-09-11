@@ -1,0 +1,75 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+
+jobs:
+  build-apk:
+    name: Build debug APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install web dependencies
+        run: bun install
+
+      - name: Build web app
+        run: bunx vite build
+
+      - name: Setup JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Sync Capacitor Android project
+        run: bunx cap sync android
+
+      - name: Grant execute permission to Gradle wrapper
+        run: chmod +x android/gradlew
+
+      - name: Build debug APK
+        working-directory: android
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Locate and rename APK
+        id: apk
+        run: |
+          APK_SRC=$(find android/app/build/outputs/apk/debug -name "*.apk" | head -n 1)
+          APK_DEST="android/app/build/outputs/apk/debug/ishvara-debug.apk"
+          cp "$APK_SRC" "$APK_DEST"
+          echo "path=$APK_DEST" >> "$GITHUB_OUTPUT"
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ishvara-debug-apk
+          path: ${{ steps.apk.outputs.path }}
+          retention-days: 30
+
+      - name: Publish/update "latest" release with APK
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Ishvara — Latest Build
+          body: |
+            Automatically built debug APK from the latest push to `main` (commit ${{ github.sha }}).
+
+            Download `ishvara-debug.apk` below, transfer it to an Android device, and install it
+            (allow "install from unknown sources" if prompted).
+          prerelease: true
+          make_latest: true
+          files: ${{ steps.apk.outputs.path }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

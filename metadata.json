@@ -1,0 +1,6 @@
+{
+  "name": "Ishvara",
+  "description": "A modern spiritual content platform focused on Lord Shiva, Lord Hanuman, and Bhagavad Gita wisdom.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
