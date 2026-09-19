@@ -173,13 +173,17 @@ User question: ${JSON.stringify(question)}`;
       headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
       body: JSON.stringify({
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json', temperature: 0.3, maxOutputTokens: 600 },
+        // Generous limit: on thinking models, reasoning tokens count toward maxOutputTokens
+        generationConfig: { responseMimeType: 'application/json', temperature: 0.3, maxOutputTokens: 4096 },
       }),
     });
     if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
     const data = await res.json();
-    const text: string = data?.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
-    const parsed = JSON.parse(text);
+    // Skip any "thought" parts and join the answer text
+    const parts: { text?: string; thought?: boolean }[] = data?.candidates?.[0]?.content?.parts ?? [];
+    const text = parts.filter(p => !p.thought && p.text).map(p => p.text).join('').trim();
+    if (!text) throw new Error(`Empty Gemini response (finishReason: ${data?.candidates?.[0]?.finishReason ?? 'unknown'})`);
+    const parsed = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, ''));
     const cited = docs.find(d => d.source === parsed.citationSource) ?? primary;
     return json({
       answer: String(parsed.answer ?? ''),
