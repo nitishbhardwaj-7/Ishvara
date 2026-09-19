@@ -49,8 +49,10 @@ jobs:
           mkdir -p public_site
           cp -r site/. public_site/
           cp -r dist-admin public_site/admin
-          # Fill in the contact email in the static pages
-          sed -i "s|__SUPPORT_EMAIL__|${SUPPORT_EMAIL:-support@example.com}|g" public_site/*.html
+          # Fill in the contact email in the static pages (trimmed; safe for any characters)
+          export SUPPORT_EMAIL="$(printf '%s' "${SUPPORT_EMAIL:-support@example.com}" | tr -d '\r\n' | xargs)"
+          perl -pi -e 's/__SUPPORT_EMAIL__/$ENV{SUPPORT_EMAIL}/g' public_site/*.html
+          grep -c "$SUPPORT_EMAIL" public_site/privacy.html
 
       - uses: actions/configure-pages@v5
 

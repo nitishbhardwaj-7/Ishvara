@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import * as tus from 'tus-js-client';
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+// Trim: values pasted into GitHub variables often carry a stray newline
+const url = (import.meta.env.VITE_SUPABASE_URL ?? '').trim();
+const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY ?? '').trim();
 
 export const isConfigured = Boolean(url && anonKey);
 export const supabase = createClient(url || 'https://not-configured.supabase.co', anonKey || 'missing');
