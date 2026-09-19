@@ -8,29 +8,40 @@ type AccessState = 'checking' | 'allowed' | 'denied';
 
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
-  const [status, setStatus] = useState<'idle' | 'sending' | 'sent' | 'error'>('idle');
+  const [password, setPassword] = useState('');
+  const [status, setStatus] = useState<'idle' | 'working' | 'sent' | 'error'>('idle');
   const [error, setError] = useState('');
 
-  const send = async (e: React.FormEvent) => {
+  const fail = (message: string) => {
+    setError(message);
+    setStatus('error');
+  };
+
+  const signInWithPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    setStatus('sending');
+    setStatus('working');
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    if (error) fail(error.message);
+    // on success, onAuthStateChange in AdminApp takes over
+  };
+
+  const sendLink = async () => {
+    if (!email.trim()) return fail('Enter your email first.');
+    setStatus('working');
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
-      options: { emailRedirectTo: window.location.href.split('#')[0] },
+      options: { emailRedirectTo: window.location.href.split('#')[0], shouldCreateUser: false },
     });
-    if (error) {
-      setError(error.message);
-      setStatus('error');
-    } else setStatus('sent');
+    if (error) fail(error.message);
+    else setStatus('sent');
   };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6">
-      <form onSubmit={send} className="w-full max-w-sm space-y-4 p-6 rounded-2xl bg-[#121212] border border-white/10">
+      <form onSubmit={signInWithPassword} className="w-full max-w-sm space-y-4 p-6 rounded-2xl bg-[#121212] border border-white/10">
         <div className="text-center">
           <div className="text-3xl text-[#D6A85F] font-serif">ॐ</div>
           <h1 className="text-lg font-semibold mt-1">Ishvara Admin</h1>
-          <p className="text-xs text-neutral-400 mt-1">We’ll email you a one-time sign-in link.</p>
         </div>
         {status === 'sent' ? (
           <p className="text-sm text-emerald-300 text-center">Check your inbox for the sign-in link, then open it on this device.</p>
@@ -43,10 +54,22 @@ const Login: React.FC = () => {
               onChange={e => setEmail(e.target.value)}
               placeholder="you@example.com"
               className="field"
-              autoComplete="email"
+              autoComplete="username"
             />
-            <button type="submit" disabled={status === 'sending'} className="btn btn-primary w-full">
-              {status === 'sending' ? 'Sending…' : 'Email me a sign-in link'}
+            <input
+              type="password"
+              required
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Password"
+              className="field"
+              autoComplete="current-password"
+            />
+            <button type="submit" disabled={status === 'working'} className="btn btn-primary w-full">
+              {status === 'working' ? 'Signing in…' : 'Sign in'}
+            </button>
+            <button type="button" onClick={sendLink} disabled={status === 'working'} className="w-full text-xs text-neutral-400 hover:text-white">
+              Or email me a one-time sign-in link
             </button>
             {status === 'error' && <p className="text-xs text-rose-400">{error}</p>}
           </>
