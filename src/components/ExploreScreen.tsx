@@ -6,39 +6,34 @@ import {
   ArrowRight,
   ArrowUpRight,
   X,
-  Music,
-  BookOpen,
   Share2,
-  Film
+  Settings
 } from 'lucide-react';
-import { SEED_VIDEOS, SEED_AUDIO_TRACKS, SEED_SHLOKAS } from '../data/seedData';
+import { SEED_SHLOKAS } from '../data/wisdom';
 import { devotionalAudioEngine } from '../services/audioEngine';
-import { Deity } from '../types';
-import {
-  getMediaUrl,
-  getDeityMediaAsset,
-  EXPLICIT_DEITY_IMAGE_MAPPING,
-  EXPLORE_FEATURED_CONTENT_MAPPING
-} from '../data/mediaConfig';
+import { Deity, VideoItem } from '../types';
+import { getMediaUrl, EXPLICIT_DEITY_IMAGE_MAPPING } from '../data/mediaConfig';
 import { SpiritualImage } from './SpiritualImage';
 
 type FilterTab = 'all' | 'videos' | 'audio' | 'shlokas' | 'deities' | 'topics';
 
 export const ExploreScreen: React.FC = () => {
   const {
+    videos,
+    songs,
     setCurrentVideoIndex,
     setActiveTab,
     setSelectedDeityFilter,
     setShareModalItem,
-    setShowAskDivya
+    setShowAskDivya,
+    setShowSettings
   } = useApp();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [activeDeity, setActiveDeity] = useState<Deity | 'All'>('All');
 
-  // Curated editorial continue exploring items with authentic, cinematic photography
-  const continueExploringItems = EXPLORE_FEATURED_CONTENT_MAPPING;
+  const latestVideos = videos.slice(0, 10);
 
   // Deity tiles with restrained typography and authentic visual textures
   const deityTiles = [
@@ -68,34 +63,25 @@ export const ExploreScreen: React.FC = () => {
     }
   ];
 
-  // Editorial topics matching exact prompt list
   const editorialTopics = [
-    { name: 'Anxiety', count: '14 verses' },
-    { name: 'Discipline', count: '18 verses' },
-    { name: 'Relationships', count: '9 verses' },
-    { name: 'Purpose', count: '22 verses' },
-    { name: 'Meditation', count: '16 chants' },
-    { name: 'Anger', count: '11 verses' },
-    { name: 'Success', count: '15 verses' },
-    { name: 'Letting Go', count: '13 verses' }
+    'Anxiety', 'Discipline', 'Relationships', 'Purpose', 'Meditation', 'Anger', 'Success', 'Letting Go'
   ];
 
   // Filter queries
   const q = searchQuery.toLowerCase().trim();
   const isFiltering = q.length > 0 || activeFilter !== 'all';
 
-  const filteredVideos = SEED_VIDEOS.filter(v => {
+  const filteredVideos = videos.filter(v => {
     const matchesDeity = activeDeity === 'All' || v.deity === activeDeity;
     const matchesSearch =
       !q ||
       v.title.toLowerCase().includes(q) ||
-      v.topic.toLowerCase().includes(q) ||
-      v.shortDescription.toLowerCase().includes(q) ||
+      v.description.toLowerCase().includes(q) ||
       v.sourceContext.toLowerCase().includes(q);
     return matchesDeity && matchesSearch;
   });
 
-  const filteredAudio = SEED_AUDIO_TRACKS.filter(a => {
+  const filteredAudio = songs.filter(a => {
     const matchesDeity = activeDeity === 'All' || a.deity === activeDeity;
     const matchesSearch =
       !q ||
@@ -111,13 +97,14 @@ export const ExploreScreen: React.FC = () => {
       !q ||
       s.translation.toLowerCase().includes(q) ||
       s.sanskrit.toLowerCase().includes(q) ||
-      s.chapterVerse.toLowerCase().includes(q) ||
+      (s.chapterVerse ?? '').toLowerCase().includes(q) ||
       s.source.toLowerCase().includes(q);
     return matchesDeity && matchesSearch;
   });
 
-  const handleOpenVideo = (videoIndex: number) => {
-    setCurrentVideoIndex(videoIndex);
+  const handleOpenVideo = (video: VideoItem) => {
+    setSelectedDeityFilter('All');
+    setCurrentVideoIndex(Math.max(0, videos.findIndex(v => v.id === video.id)));
     setActiveTab('home');
   };
 
@@ -140,7 +127,7 @@ export const ExploreScreen: React.FC = () => {
       {/* ================================================== */}
       {/* 1. EXPLORE HEADER                                  */}
       {/* ================================================== */}
-      <header className="px-5 pt-7 pb-5 bg-[#090909]">
+      <header className="px-5 pt-5 pb-5 bg-[#090909] safe-top">
         <div className="flex items-start justify-between">
           <div>
             <h1 className="font-serif text-3xl font-normal tracking-tight text-[#F5F1E8] leading-none">
@@ -151,15 +138,23 @@ export const ExploreScreen: React.FC = () => {
             </p>
           </div>
 
-          {/* Understated Search with AI action */}
+          <div className="flex items-center gap-2">
           <button
             id="btn-explore-ai-search"
             onClick={() => setShowAskDivya(true)}
             className="flex items-center gap-1.5 py-1.5 px-3 rounded-full text-xs font-sans text-[#9B9B9B] hover:text-[#F5F1E8] border border-white/[0.08] hover:border-white/[0.16] transition-colors duration-150 cursor-pointer"
           >
             <span className="text-[#C99A4A] text-xs leading-none">✦</span>
-            <span>Search with AI</span>
+            <span>Ask AI</span>
           </button>
+          <button
+            onClick={() => setShowSettings(true)}
+            className="w-8 h-8 rounded-full border border-white/[0.08] flex items-center justify-center text-[#9B9B9B]"
+            aria-label="Settings"
+          >
+            <Settings className="w-4 h-4" />
+          </button>
+          </div>
         </div>
 
         {/* ================================================== */}
@@ -250,15 +245,14 @@ export const ExploreScreen: React.FC = () => {
               </div>
 
               <div className="grid grid-cols-2 gap-3">
-                {filteredVideos.map((video, idx) => (
+                {filteredVideos.map(video => (
                   <div
                     key={video.id}
-                    onClick={() => handleOpenVideo(idx)}
+                    onClick={() => handleOpenVideo(video)}
                     className="group cursor-pointer space-y-2"
                   >
                     <SpiritualImage
                       src={video.thumbnailUrl}
-                      fallbackSrc={video.fallbackImageUrl}
                       alt={video.title}
                       aspectRatio="4/5"
                       deity={video.deity}
@@ -302,7 +296,6 @@ export const ExploreScreen: React.FC = () => {
                     <div className="flex items-center gap-3">
                       <SpiritualImage
                         src={track.coverUrl}
-                        fallbackSrc={track.fallbackImageUrl}
                         alt={track.title}
                         aspectRatio="1/1"
                         deity={track.deity}
@@ -409,15 +402,12 @@ export const ExploreScreen: React.FC = () => {
             <div className="grid grid-cols-2 gap-2.5">
               {editorialTopics.map(topic => (
                 <button
-                  key={topic.name}
-                  onClick={() => handleSelectTopic(topic.name)}
+                  key={topic}
+                  onClick={() => handleSelectTopic(topic)}
                   className="p-4 rounded-xl bg-[#111111] hover:bg-[#171717] border border-white/[0.06] text-left transition-colors cursor-pointer group"
                 >
                   <span className="font-sans text-xs text-[#F5F1E8] group-hover:text-[#C99A4A] transition-colors block">
-                    {topic.name}
-                  </span>
-                  <span className="font-sans text-[11px] text-[#6F6F6F] mt-1 block">
-                    {topic.count}
+                    {topic}
                   </span>
                 </button>
               ))}
@@ -442,7 +432,7 @@ export const ExploreScreen: React.FC = () => {
       ) : (
         /* ================================================== */
         /* DEFAULT EDITORIAL DISCOVERY LAYOUT                 */
-        /* 4. Continue Exploring                              */
+        /* 4. Latest Videos                                   */
         /* 5. Browse by Deity                                 */
         /* 6. Popular Topics                                  */
         /* 7. Shloka of the Day                               */
@@ -451,10 +441,11 @@ export const ExploreScreen: React.FC = () => {
           {/* ================================================ */}
           {/* 4. CONTINUE EXPLORING (Horizontal scrollable)     */}
           {/* ================================================ */}
+          {latestVideos.length > 0 && (
           <section>
             <div className="px-5 mb-3.5 flex items-baseline justify-between">
               <h2 className="font-serif text-xl font-normal tracking-tight text-[#F5F1E8]">
-                Continue Exploring
+                Latest Videos
               </h2>
               <button
                 onClick={() => setActiveFilter('videos')}
@@ -465,44 +456,37 @@ export const ExploreScreen: React.FC = () => {
             </div>
 
             <div className="flex gap-3 overflow-x-auto no-scrollbar px-5 pb-2">
-              {continueExploringItems.map(item => (
+              {latestVideos.map(video => (
                 <div
-                  key={item.id}
-                  id={`continue-exploring-card-${item.id}`}
-                  onClick={() => handleOpenVideo(item.videoIndex)}
-                  className="flex-shrink-0 w-[180px] sm:w-[210px] group cursor-pointer space-y-2.5"
+                  key={video.id}
+                  onClick={() => handleOpenVideo(video)}
+                  className="flex-shrink-0 w-[150px] group cursor-pointer space-y-2.5"
                 >
-                  {/* Visual thumbnail with natural photography and fallback */}
                   <SpiritualImage
-                    src={item.image}
-                    fallbackSrc={item.fallbackImage}
-                    alt={item.title}
-                    aspectRatio="4/5"
-                    deity={item.deity}
-                    focalPoint={item.focalPoint}
+                    src={video.thumbnailUrl}
+                    alt={video.title}
+                    aspectRatio="custom"
+                    deity={video.deity}
                     overlay="subtle"
-                    className="w-full rounded-2xl bg-[#171717] border border-white/[0.06]"
-                    imgClassName="group-hover:scale-105 transition-transform duration-500 ease-out"
+                    className="w-full aspect-[9/16] rounded-2xl bg-[#171717] border border-white/[0.06]"
                   >
-                    {/* Small restrained play icon */}
-                    <div className="absolute bottom-3 right-3 w-7 h-7 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white border border-white/10 group-hover:scale-110 transition-transform">
+                    <div className="absolute bottom-3 right-3 w-7 h-7 rounded-full bg-black/60 backdrop-blur-md flex items-center justify-center text-white border border-white/10">
                       <Play className="w-3 h-3 fill-current ml-0.5 text-[#F5F1E8]" />
                     </div>
                   </SpiritualImage>
-
-                  {/* Title & Metadata naturally below thumbnail */}
                   <div className="px-0.5">
-                    <h3 className="font-sans text-xs font-medium text-[#F5F1E8] line-clamp-2 leading-snug group-hover:text-[#C99A4A] transition-colors">
-                      {item.title}
+                    <h3 className="font-sans text-xs font-medium text-[#F5F1E8] line-clamp-2 leading-snug">
+                      {video.title}
                     </h3>
                     <p className="text-[11px] font-sans text-[#9B9B9B] mt-1">
-                      {item.subtitle} · {item.duration}
+                      {video.deity} · {Math.max(1, Math.round(video.duration / 60))} min
                     </p>
                   </div>
                 </div>
               ))}
             </div>
           </section>
+          )}
 
           {/* ================================================ */}
           {/* 5. BROWSE BY DEITY (Horizontal row of 3 tiles)    */}
@@ -567,13 +551,12 @@ export const ExploreScreen: React.FC = () => {
             <div className="grid grid-cols-2 gap-x-6 gap-y-2">
               {editorialTopics.map(topic => (
                 <button
-                  key={topic.name}
-                  id={`topic-item-${topic.name}`}
-                  onClick={() => handleSelectTopic(topic.name)}
+                  key={topic}
+                  onClick={() => handleSelectTopic(topic)}
                   className="flex items-center justify-between py-2.5 border-b border-white/[0.06] hover:border-white/[0.16] text-left transition-colors cursor-pointer group"
                 >
                   <span className="font-sans text-xs text-[#F5F1E8] group-hover:text-[#C99A4A] transition-colors">
-                    {topic.name}
+                    {topic}
                   </span>
                   <ArrowUpRight className="w-3.5 h-3.5 text-[#6F6F6F] group-hover:text-[#C99A4A] group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
                 </button>

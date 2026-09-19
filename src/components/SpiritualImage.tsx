@@ -55,18 +55,23 @@ export const SpiritualImage: React.FC<SpiritualImageProps> = ({
   onClick,
   id
 }) => {
-  const [currentSrc, setCurrentSrc] = useState<string>(src);
+  // Content without artwork falls back to the deity's bundled image
+  const resolvedSrc =
+    src ||
+    EXPLICIT_DEITY_IMAGE_MAPPING[(deity || 'Universal').toLowerCase() as keyof typeof EXPLICIT_DEITY_IMAGE_MAPPING]?.deity ||
+    '';
+  const [currentSrc, setCurrentSrc] = useState<string>(resolvedSrc);
   const [hasTriedFallback, setHasTriedFallback] = useState<boolean>(false);
   const [isFailed, setIsFailed] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Sync state when src prop changes
   useEffect(() => {
-    setCurrentSrc(src);
+    setCurrentSrc(resolvedSrc);
     setHasTriedFallback(false);
     setIsFailed(false);
     setIsLoading(true);
-  }, [src]);
+  }, [resolvedSrc]);
 
   const handleError = () => {
     // 1. If explicit fallbackSrc provided and not yet tried

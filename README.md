@@ -1,65 +1,29 @@
-# Ishvara (ईश्वर) — Sacred Sadhana, Wisdom & Devotion
+# Ishvara (ईश्वर)
 
-A modern spiritual and devotional content platform focused on Lord Shiva, Lord Hanuman, and the eternal wisdom of the Bhagavad Gita.
+Daily devotional videos and songs for Lord Shiva, Lord Hanuman, and the Bhagavad Gita. It's an Android app built with React, Vite, and Capacitor.
 
-Built with React 19, TypeScript, Tailwind CSS, Vite, and Capacitor / PWA architectures. Typography powered by the Lazzer Medium typeface from Displaay Type Foundry.
+- **Home**: vertical video feed of the videos you publish, newest first
+- **Songs**: bhajans, mantras, aartis, and chants with a full player
+- **Explore**: browse by deity, search, and a bundled shloka library
+- **Journey**: a daily 5-minute practice (shloka, japa counter, reflection) with a streak kept on the device
+- **Ask Divya**: an AI guide grounded in scripture (Gemini)
 
----
+No accounts, likes, comments, or payments. Content is managed from a private admin page.
 
-## Features
+**Setting up production (Supabase, Bunny.net, signing, Play Store): see [SETUP.md](SETUP.md).**
 
-- **9:16 Devotional Video Feed**: Dynamic vertical reels with Sanskrit shlokas, English/Hindi translations, commentary, and deity tags.
-- **Audio & Chants Engine**: Streaming audio player with sacred chants, mantras, background loop controls, and playback speeds.
-- **Sadhana Daily Tracker**: Track meditation minutes, mantra japa counters, daily spiritual streaks, and reflective milestones.
-- **Ask Divya AI**: Context-grounded spiritual assistant powered by Google Gemini, answering queries with authentic scripture citations (Bhagavad Gita, Shiva Purana, Ramcharitmanas).
-- **Mobile Ready & Installable**:
-  - **PWA**: Fully installable directly from your browser with offline caching and standalone display.
-  - **Capacitor**: Ready for iOS and Android native deployment via Xcode and Android Studio.
-- **Curated Typography**: Authentic Lazzer Medium variable font integration with full OpenType feature support.
+## Project layout
 
----
+| Path | What |
+|---|---|
+| `src/` | The listener app (bundled into the APK) |
+| `admin/` | Admin uploader (deployed to GitHub Pages at `/admin/`) |
+| `site/` | Landing page and privacy policy (GitHub Pages) |
+| `supabase/schema.sql` | Database tables and security rules |
+| `supabase/functions/` | `ask-divya` (AI) and `bunny` (uploads) edge functions |
+| `android/` | Capacitor Android project |
+| `assets/` | Icon, splash, and Play Store graphics sources |
 
-## Tech Stack
+## Builds
 
-- **Frontend**: React 19, TypeScript, Tailwind CSS v4, Motion
-- **Backend & Middleware**: Node.js, Express, Vite
-- **Mobile Packaging**: Capacitor CLI, vite-plugin-pwa
-- **AI Engine**: `@google/genai` (Gemini API)
-- **Icons**: Lucide React
-
----
-
-## Getting Started
-
-### 1. Install Dependencies
-```bash
-npm install
-```
-
-### 2. Run Locally in Development Mode
-```bash
-npm run dev
-```
-Open [http://localhost:3000](http://localhost:3000) in your browser.
-
-### 3. Production Build
-```bash
-npm run build
-npm start
-```
-
-### 4. Build for Mobile (Capacitor)
-```bash
-# Sync web build to native folders
-npm run cap:sync
-
-# Run on iOS or Android simulator / device
-npm run cap:ios
-npm run cap:android
-```
-
----
-
-## License
-
-MIT
+Every push to `main` runs **Build Android App**. The installable APK is published to the [latest release](https://github.com/nitishbhardwaj-7/Ishvara/releases/tag/latest). Once signing is configured, the run also produces a signed `.aab` for Google Play under its Artifacts.

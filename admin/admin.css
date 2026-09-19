@@ -1,0 +1,25 @@
+@import 'tailwindcss' source(".");
+
+body {
+  font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+}
+
+@utility field {
+  @apply w-full rounded-lg bg-[#171717] border border-white/10 px-3 py-2 text-sm text-neutral-100 placeholder-neutral-500 focus:outline-none focus:border-[#D6A85F]/70;
+}
+
+@utility label {
+  @apply block text-xs font-medium text-neutral-400 mb-1;
+}
+
+@utility btn {
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition disabled:opacity-40 disabled:cursor-not-allowed;
+}
+
+@utility btn-primary {
+  @apply bg-[#D6A85F] text-black hover:bg-[#e3b872];
+}
+
+@utility btn-ghost {
+  @apply bg-white/5 text-neutral-200 hover:bg-white/10 border border-white/10;
+}

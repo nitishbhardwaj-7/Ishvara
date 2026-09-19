@@ -3,249 +3,179 @@ import { AudioTrack } from '../types';
 export interface AudioPlayerState {
   currentTrack: AudioTrack | null;
   isPlaying: boolean;
+  isLoading: boolean;
+  error: string | null;
   currentTime: number;
   duration: number;
-  volume: number;
-  isMuted: boolean;
   repeatMode: 'off' | 'track' | 'all';
   isShuffled: boolean;
   queue: AudioTrack[];
-  history: AudioTrack[];
   isExpanded: boolean;
-  isSyntheticDroneActive: boolean;
 }
 
 type AudioListener = (state: AudioPlayerState) => void;
 
 class DevotionalAudioEngine {
   private audio: HTMLAudioElement | null = null;
-  private audioContext: AudioContext | null = null;
-  private droneOscillators: OscillatorNode[] = [];
-  private droneGain: GainNode | null = null;
   private listeners: Set<AudioListener> = new Set();
 
   private state: AudioPlayerState = {
     currentTrack: null,
     isPlaying: false,
+    isLoading: false,
+    error: null,
     currentTime: 0,
     duration: 0,
-    volume: 0.85,
-    isMuted: false,
     repeatMode: 'all',
     isShuffled: false,
     queue: [],
-    history: [],
     isExpanded: false,
-    isSyntheticDroneActive: false
   };
 
   constructor() {
-    if (typeof window !== 'undefined') {
-      this.audio = new Audio();
-      this.audio.preload = 'auto';
+    if (typeof window === 'undefined') return;
+    const audio = new Audio();
+    audio.preload = 'auto';
+    this.audio = audio;
 
-      this.audio.addEventListener('timeupdate', () => {
-        if (this.audio) {
-          this.state.currentTime = this.audio.currentTime;
-          this.state.duration = this.audio.duration || this.state.currentTrack?.duration || 0;
-          this.notify();
-        }
-      });
+    audio.addEventListener('timeupdate', () => {
+      this.state.currentTime = audio.currentTime;
+      this.state.duration = audio.duration || this.state.currentTrack?.duration || 0;
+      this.notify();
+    });
+    audio.addEventListener('waiting', () => this.patch({ isLoading: true }));
+    audio.addEventListener('playing', () => this.patch({ isLoading: false, isPlaying: true, error: null }));
+    audio.addEventListener('pause', () => this.patch({ isPlaying: false }));
+    audio.addEventListener('ended', () => this.handleTrackEnded());
+    audio.addEventListener('error', () =>
+      this.patch({ isLoading: false, isPlaying: false, error: 'Could not play this track. Check your connection.' }),
+    );
 
-      this.audio.addEventListener('ended', () => {
-        this.handleTrackEnded();
-      });
-
-      this.audio.addEventListener('error', () => {
-        // Fallback to synthetic meditative drone if remote asset has CORS/network issue
-        this.startSyntheticMeditativeDrone();
-      });
-
-      this.audio.addEventListener('play', () => {
-        this.state.isPlaying = true;
-        this.notify();
-      });
-
-      this.audio.addEventListener('pause', () => {
-        this.state.isPlaying = false;
-        this.notify();
-      });
-    }
+    this.setupMediaSession();
   }
 
   public subscribe(listener: AudioListener): () => void {
     this.listeners.add(listener);
     listener({ ...this.state });
-    return () => this.listeners.delete(listener);
-  }
-
-  private notify() {
-    this.listeners.forEach(l => l({ ...this.state }));
+    return () => {
+      this.listeners.delete(listener);
+    };
   }
 
   public getState(): AudioPlayerState {
     return { ...this.state };
   }
 
-  public playTrack(track: AudioTrack, queueList: AudioTrack[] = []) {
-    this.stopSyntheticDrone();
+  private patch(partial: Partial<AudioPlayerState>) {
+    Object.assign(this.state, partial);
+    this.notify();
+  }
+
+  private notify() {
+    const snapshot = { ...this.state };
+    this.listeners.forEach(l => l(snapshot));
+  }
+
+  public playTrack(track: AudioTrack, queue: AudioTrack[] = []) {
     this.state.currentTrack = track;
     this.state.currentTime = 0;
     this.state.duration = track.duration;
-
-    if (queueList.length > 0) {
-      this.state.queue = queueList;
-    } else if (!this.state.queue.find(t => t.id === track.id)) {
-      this.state.queue = [track, ...this.state.queue];
-    }
-
-    // Add to history
-    this.state.history = [track, ...this.state.history.filter(h => h.id !== track.id)].slice(0, 30);
+    this.state.error = null;
+    this.state.isLoading = true;
+    if (queue.length > 0) this.state.queue = queue;
+    else if (!this.state.queue.some(t => t.id === track.id)) this.state.queue = [track, ...this.state.queue];
 
     if (this.audio) {
       this.audio.src = track.audioUrl;
-      this.audio.currentTime = 0;
-      this.audio.volume = this.state.isMuted ? 0 : this.state.volume;
-      this.audio.play().catch(() => {
-        // Autoplay policy or CORS error fallback
-        this.startSyntheticMeditativeDrone();
-      });
+      this.audio.play().catch(() => this.patch({ isLoading: false, isPlaying: false }));
     }
-
-    this.state.isPlaying = true;
+    this.updateMediaSessionMetadata(track);
     this.notify();
   }
 
   public togglePlayPause() {
-    if (!this.state.currentTrack) return;
+    if (!this.audio || !this.state.currentTrack) return;
+    if (this.audio.paused) this.audio.play().catch(() => {});
+    else this.audio.pause();
+  }
 
-    if (this.state.isPlaying) {
-      if (this.audio) this.audio.pause();
-      this.stopSyntheticDrone();
-      this.state.isPlaying = false;
-    } else {
-      if (this.audio && this.audio.src) {
-        this.audio.play().catch(() => {
-          this.startSyntheticMeditativeDrone();
-        });
-      } else {
-        this.startSyntheticMeditativeDrone();
-      }
-      this.state.isPlaying = true;
-    }
-    this.notify();
+  public pause() {
+    this.audio?.pause();
   }
 
   public seek(seconds: number) {
-    if (this.audio && this.audio.duration) {
-      this.audio.currentTime = Math.max(0, Math.min(seconds, this.audio.duration));
-      this.state.currentTime = this.audio.currentTime;
-    } else {
-      this.state.currentTime = seconds;
-    }
+    if (!this.audio || !this.audio.duration) return;
+    this.audio.currentTime = Math.max(0, Math.min(seconds, this.audio.duration));
+    this.state.currentTime = this.audio.currentTime;
     this.notify();
   }
 
   public nextTrack() {
-    if (this.state.queue.length === 0) return;
-    const currentIndex = this.state.queue.findIndex(t => t.id === this.state.currentTrack?.id);
-    let nextIndex = currentIndex + 1;
-    if (nextIndex >= this.state.queue.length) {
-      nextIndex = 0;
-    }
-    this.playTrack(this.state.queue[nextIndex], this.state.queue);
+    const { queue, currentTrack, isShuffled } = this.state;
+    if (queue.length === 0) return;
+    const idx = queue.findIndex(t => t.id === currentTrack?.id);
+    const nextIdx = isShuffled && queue.length > 1
+      ? (idx + 1 + Math.floor(Math.random() * (queue.length - 1))) % queue.length
+      : (idx + 1) % queue.length;
+    this.playTrack(queue[nextIdx], queue);
   }
 
   public prevTrack() {
-    if (this.state.queue.length === 0) return;
-    const currentIndex = this.state.queue.findIndex(t => t.id === this.state.currentTrack?.id);
-    let prevIndex = currentIndex - 1;
-    if (prevIndex < 0) {
-      prevIndex = this.state.queue.length - 1;
+    const { queue, currentTrack } = this.state;
+    if (queue.length === 0) return;
+    // Standard player behaviour: restart the song if we're more than 3s in
+    if (this.audio && this.audio.currentTime > 3) {
+      this.seek(0);
+      return;
     }
-    this.playTrack(this.state.queue[prevIndex], this.state.queue);
+    const idx = queue.findIndex(t => t.id === currentTrack?.id);
+    this.playTrack(queue[(idx - 1 + queue.length) % queue.length], queue);
   }
 
   public toggleShuffle() {
-    this.state.isShuffled = !this.state.isShuffled;
-    this.notify();
+    this.patch({ isShuffled: !this.state.isShuffled });
   }
 
   public toggleRepeat() {
-    const modes: ('off' | 'track' | 'all')[] = ['off', 'track', 'all'];
-    const nextIdx = (modes.indexOf(this.state.repeatMode) + 1) % modes.length;
-    this.state.repeatMode = modes[nextIdx];
-    this.notify();
+    const modes: AudioPlayerState['repeatMode'][] = ['all', 'track', 'off'];
+    this.patch({ repeatMode: modes[(modes.indexOf(this.state.repeatMode) + 1) % modes.length] });
   }
 
   public setExpanded(expanded: boolean) {
-    this.state.isExpanded = expanded;
-    this.notify();
+    this.patch({ isExpanded: expanded });
   }
 
   private handleTrackEnded() {
-    if (this.state.repeatMode === 'track' && this.state.currentTrack) {
+    const { repeatMode, queue, currentTrack } = this.state;
+    const isLast = queue.findIndex(t => t.id === currentTrack?.id) === queue.length - 1;
+    if (repeatMode === 'track') {
       this.seek(0);
-      this.audio?.play();
-    } else if (this.state.repeatMode === 'all') {
+      this.audio?.play().catch(() => {});
+    } else if (repeatMode === 'all' || !isLast) {
       this.nextTrack();
     } else {
-      this.state.isPlaying = false;
-      this.notify();
+      this.patch({ isPlaying: false });
     }
   }
 
-  // Web Audio Synthetic 432Hz Om Tanpura Drone Fallback
-  public startSyntheticMeditativeDrone() {
-    if (typeof window === 'undefined') return;
-    try {
-      if (!this.audioContext) {
-        const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-        this.audioContext = new AudioCtx();
-      }
-      if (this.audioContext.state === 'suspended') {
-        this.audioContext.resume();
-      }
-
-      this.stopSyntheticDrone();
-
-      const baseFreq = 136.1; // Om frequency (C# / Earth Year vibration)
-      const freqs = [baseFreq, baseFreq * 1.5, baseFreq * 2, baseFreq * 3];
-
-      this.droneGain = this.audioContext.createGain();
-      this.droneGain.gain.setValueAtTime(0.01, this.audioContext.currentTime);
-      this.droneGain.gain.exponentialRampToValueAtTime(0.12, this.audioContext.currentTime + 3);
-      this.droneGain.connect(this.audioContext.destination);
-
-      this.droneOscillators = freqs.map((f, i) => {
-        const osc = this.audioContext!.createOscillator();
-        osc.type = i === 0 ? 'sine' : i === 1 ? 'triangle' : 'sine';
-        osc.frequency.setValueAtTime(f + (i * 0.4), this.audioContext!.currentTime);
-        osc.connect(this.droneGain!);
-        osc.start();
-        return osc;
-      });
-
-      this.state.isSyntheticDroneActive = true;
-      this.state.isPlaying = true;
-      this.notify();
-    } catch {
-      // ignore
-    }
+  // Lock-screen / notification controls where the WebView supports the Media Session API
+  private setupMediaSession() {
+    if (!('mediaSession' in navigator)) return;
+    const ms = navigator.mediaSession;
+    ms.setActionHandler('play', () => this.audio?.play().catch(() => {}));
+    ms.setActionHandler('pause', () => this.audio?.pause());
+    ms.setActionHandler('nexttrack', () => this.nextTrack());
+    ms.setActionHandler('previoustrack', () => this.prevTrack());
   }
 
-  public stopSyntheticDrone() {
-    if (this.droneOscillators.length > 0) {
-      this.droneOscillators.forEach(o => {
-        try { o.stop(); o.disconnect(); } catch {}
-      });
-      this.droneOscillators = [];
-    }
-    if (this.droneGain) {
-      try { this.droneGain.disconnect(); } catch {}
-      this.droneGain = null;
-    }
-    this.state.isSyntheticDroneActive = false;
+  private updateMediaSessionMetadata(track: AudioTrack) {
+    if (!('mediaSession' in navigator) || typeof MediaMetadata === 'undefined') return;
+    navigator.mediaSession.metadata = new MediaMetadata({
+      title: track.title,
+      artist: track.artist,
+      album: 'Ishvara',
+      artwork: track.coverUrl ? [{ src: track.coverUrl, sizes: '512x512' }] : [],
+    });
   }
 }
 
